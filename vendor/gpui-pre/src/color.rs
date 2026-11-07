@@ -846,7 +846,10 @@ impl Background {
     /// HERDR: marks a solid background in the replacing color.
     pub(crate) fn mark_replacing(mut self) -> Self {
         let r = REPLACING.load(std::sync::atomic::Ordering::Relaxed);
-        if r != u64::MAX && self.tag == BackgroundTag::Solid && rgba8(self.solid) == r {
+        // Runs for every quad: the alpha byte rejects nearly all of them
+        // (opaque or clear) before the HSL→RGB conversion.
+        let alpha = || (self.solid.a.clamp(0.0, 1.0) * 255.0).round() as u64;
+        if r != u64::MAX && self.tag == BackgroundTag::Solid && alpha() == r & 255 && rgba8(self.solid) == r {
             self.pad = 1;
         }
         self
