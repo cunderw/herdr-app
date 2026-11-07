@@ -743,7 +743,14 @@ pub fn write_person(person: &Person) -> std::io::Result<()> {
 /// Overlays (`popover`) take the window's opacity where the renderer can make
 /// them replace what's below (`REPLACES_BELOW`): they show the desktop, never
 /// the window's own text under them. Elsewhere they stay solid.
+///
+/// `raised` becomes the lift it paints as a tint (white on a dark theme, black
+/// on a light one), like `hover` and `selected`: a solid one would be the one
+/// opaque patch in a see-through dialog or card.
 fn see_through(theme: &mut Theme, opacity: f32) {
+    if let (Some((bg, _)), Some((raised, 255))) = (theme.get("background").and_then(|v| hex_parts(v)), theme.get("raised").and_then(|v| hex_parts(v))) {
+        theme.insert("raised".to_owned(), tint(bg, raised));
+    }
     for name in ["background", "surface", "canvas", "chrome"] {
         if let Some(v) = theme.get_mut(name) {
             if let Some((rgb, _)) = hex_parts(v) {
@@ -758,6 +765,19 @@ fn see_through(theme: &mut Theme, opacity: f32) {
             }
         }
     }
+}
+
+/// `over` painted on `bg`, as white or black at the alpha that gives the same color.
+fn tint(bg: u32, over: u32) -> String {
+    let target = if is_light(bg) { 0 } else { 0xffffff };
+    let a = (0..3)
+        .map(|i| {
+            let [b, o, t] = [bg, over, target].map(|c| ((c >> (8 * i)) & 255) as f32);
+            if t == b { 0.0 } else { (o - b) / (t - b) }
+        })
+        .fold(0.0f32, f32::max)
+        .clamp(0.0, 1.0);
+    format!("#{target:06x}{:02x}", (a * 255.0).round() as u32)
 }
 
 /// Whether the renderer draws a `popover` quad over cleared pixels (Metal only).
@@ -1036,6 +1056,9 @@ mod tests {
             assert_eq!(parse_hex(&theme[name]).unwrap().a, 0.0, "{name}");
             assert_eq!(rgb(&theme[name]), rgb(&opaque[name]), "{name}");
         }
+        // Raised is a tint that paints the same color on the background.
+        assert_eq!(theme["raised"], "#ffffff17");
+        assert_eq!(tint(0xf0f0f0, mix(0xf0f0f0, 0, 0.035)), "#00000009");
         // Overlays take the window's opacity only where the renderer clears what's below them.
         let popover = parse_hex(&theme["popover"]).unwrap().a;
         assert!((popover - if REPLACES_BELOW { 0.8 } else { 1.0 }).abs() < 0.01, "{popover}");

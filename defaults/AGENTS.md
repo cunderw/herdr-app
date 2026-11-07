@@ -728,7 +728,9 @@ What's about the user, never a look:
   written. The theme's `background`, `surface`, `canvas` and `chrome` stop
   being separate surfaces: all four show the one `background` color, painted
   at the window root, so a layout or theme that tells them apart loses that
-  difference. 1 (default) is an ordinary window.
+  difference. `raised` paints as a white (dark theme) or black (light theme)
+  tint of the same color, like `hover`, so raised areas stay as see-through
+  as what they sit on. 1 (default) is an ordinary window.
 - `window_blur`: `true` blurs what shows through, on systems that can (macOS,
   Windows, some Linux compositors); it needs `window_opacity` below 1.
 - `clipboard_write`: `false` blocks terminal programs from writing the local
