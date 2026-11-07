@@ -464,6 +464,10 @@ export default class Settings extends View {
     const p = this.person;
     const own = (key, composed, def) => (p[key] ?? def) !== composed;
     const size = (key, value, d, cx) => this.change((q) => (q[key] = Math.max(8, Math.min(32, (q[key] ?? value) + d))), cx);
+    const opacity = Math.max(0, Math.min(1, p.window_opacity ?? 1));
+    const blur = p.window_blur === true;
+    // Rounded to whole percents so 5% steps don't drift into 0.7999….
+    const step = (d, cx) => this.change((q) => (q.window_opacity = Math.round(Math.max(0, Math.min(1, (q.window_opacity ?? 1) + d)) * 100) / 100), cx);
     const fontRow = (which, sizeKey, title, family, def, sizeNow) =>
       v_flex()
         .w_full()
@@ -508,7 +512,25 @@ export default class Settings extends View {
         ),
       )
       .child(fontRow("font", "font_size", "Terminal font", s.font_family, DEFAULT_FONT, s.font_size))
-      .child(fontRow("ui_font", null, "Interface font", s.ui_font_family, DEFAULT_UI_FONT));
+      .child(fontRow("ui_font", null, "Interface font", s.ui_font_family, DEFAULT_UI_FONT))
+      .child(div().h(18))
+      .child(this.heading(t, "Window"))
+      .child(
+        this.row(
+          t,
+          "Opacity",
+          "Below 100% the desktop shows through.",
+          this.stepper(t, "st-window-opacity", `${Math.round(opacity * 100)}%`, (_e, cx) => step(-0.05, cx), (_e, cx) => step(0.05, cx)),
+        ),
+      )
+      .child(
+        this.row(
+          t,
+          "Blur",
+          "Blurs what shows through. Only while opacity is below 100%.",
+          this.toggle(t, "st-window-blur", blur, (_e, cx) => this.change((q) => (q.window_blur = !blur), cx)),
+        ),
+      );
   }
 
   keyboard(t) {
