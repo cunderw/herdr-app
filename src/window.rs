@@ -4307,7 +4307,9 @@ impl AppWindow {
                     div()
                         .absolute()
                         .inset_0()
-                        .bg(hsla(0.0, 0.0, 0.0, 0.35))
+                        // A see-through window keeps its look behind a dialog:
+                        // only the dialog appears, nothing dims the rest.
+                        .when(settings::get().window_opacity >= 1.0, |d| d.bg(hsla(0.0, 0.0, 0.0, 0.35)))
                         .occlude()
                         .flex()
                         .items_center()

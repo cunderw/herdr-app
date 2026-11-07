@@ -719,14 +719,18 @@ What's about the user, never a look:
   Changes apply immediately, including text already on screen.
 - `window_opacity` (0..1): below 1 the desktop shows through the window, at
   that opacity. Terminals, cards and bars become see-through together, and
-  `terminal_opacity` stops applying; dialogs and menus stay solid. Cells a
+  `terminal_opacity` stops applying. On macOS dialogs and menus (`popover`)
+  show the desktop at that opacity but hide the window's content under them;
+  elsewhere they stay solid. Cells a
   program colors stay solid too. A default background a program sets (OSC 11)
   shows at `window_opacity` instead of the window's; over a solid surface it
   sits on top of that surface. Literal colors in a layout or mod stay as
   written. The theme's `background`, `surface`, `canvas` and `chrome` stop
   being separate surfaces: all four show the one `background` color, painted
   at the window root, so a layout or theme that tells them apart loses that
-  difference. 1 (default) is an ordinary window.
+  difference. `raised` paints as a white (dark theme) or black (light theme)
+  tint of the same color, like `hover`, so raised areas stay as see-through
+  as what they sit on. 1 (default) is an ordinary window.
 - `window_blur`: `true` blurs what shows through, on systems that can (macOS,
   Windows, some Linux compositors); it needs `window_opacity` below 1.
 - `clipboard_write`: `false` blocks terminal programs from writing the local

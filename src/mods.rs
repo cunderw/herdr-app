@@ -1122,8 +1122,9 @@ pub fn apply_theme(cx: &mut App) {
 
 /// The theme as the kit's tokens. A see-through window clears `background` and
 /// `surface` from the theme, but the kit paints its own boxes (tooltips,
-/// dialogs, toasts) with `surface` and danger text with `destructive_foreground`,
-/// so those two stay solid here.
+/// dialogs, toasts) with `surface` and danger text with `destructive_foreground`:
+/// boxes take `popover` (on macOS see-through, it replaces what's below),
+/// danger text stays solid.
 fn kit_palette(t: &crate::settings::Theme, see_through: bool) -> Value {
     let g = |k: &str| t.get(k).cloned().unwrap_or_default();
     let (surface, destructive_foreground) = if see_through { (g("popover"), crate::settings::opaque(&g("background"))) } else { (g("surface"), g("background")) };
@@ -1204,7 +1205,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_kits_boxes_and_danger_text_stay_solid_in_a_see_through_window() {
+    fn the_kits_boxes_take_popover_and_danger_text_stays_solid_in_a_see_through_window() {
         let mut t = (*crate::settings::theme()).clone();
         for (name, value) in [("background", "#11223300"), ("surface", "#44556600"), ("popover", "#778899")] {
             t.insert(name.to_owned(), value.to_owned());
