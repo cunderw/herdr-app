@@ -736,10 +736,14 @@ pub fn write_person(person: &Person) -> std::io::Result<()> {
 
 /// The window's root paints the one background of a see-through window: these
 /// layers stack on it (cards on canvas on the root), and alpha at each would
-/// add up to nearly opaque. Overlays stay on `popover`, so they stay readable.
-/// The color stays beside its zero alpha for what reads it as a color. A value
-/// that is no color stays as written: `problems` reports it.
-fn see_through(theme: &mut Theme) {
+/// add up to nearly opaque. The color stays beside its zero alpha for what
+/// reads it as a color. A value that is no color stays as written: `problems`
+/// reports it.
+///
+/// Overlays (`popover`) take the window's opacity where the renderer can make
+/// them replace what's below (`REPLACES_BELOW`): they show the desktop, never
+/// the window's own text under them. Elsewhere they stay solid.
+fn see_through(theme: &mut Theme, opacity: f32) {
     for name in ["background", "surface", "canvas", "chrome"] {
         if let Some(v) = theme.get_mut(name) {
             if let Some((rgb, _)) = hex_parts(v) {
@@ -747,7 +751,17 @@ fn see_through(theme: &mut Theme) {
             }
         }
     }
+    if REPLACES_BELOW {
+        if let Some(v) = theme.get_mut("popover") {
+            if let Some((rgb, _)) = hex_parts(v) {
+                *v = format!("#{rgb:06x}{:02x}", (opacity.clamp(0.0, 1.0) * 255.0).round() as u32);
+            }
+        }
+    }
 }
+
+/// Whether the renderer draws a `popover` quad over cleared pixels (Metal only).
+const REPLACES_BELOW: bool = cfg!(target_os = "macos");
 
 /// Installs new settings; returns whether anything changed.
 pub fn set(s: Settings) -> bool {
@@ -766,11 +780,13 @@ pub fn set(s: Settings) -> bool {
         colors.extend(s.colors.clone());
         let mut theme = resolve(&p, &colors);
         if s.window_opacity < 1.0 {
-            see_through(&mut theme);
+            see_through(&mut theme, s.window_opacity);
         }
         if *c.borrow().0 == s && *c.borrow().1 == theme {
             return false;
         }
+        let replacing = (REPLACES_BELOW && s.window_opacity < 1.0).then(|| theme.get("popover").and_then(|v| parse_hex(v))).flatten().filter(|c| c.a >= 1.0 / 255.0);
+        gpui::set_replacing_color(replacing);
         gpui_shell::set_pixel_scale(s.zoom);
         *c.borrow_mut() = (Rc::new(s), Rc::new(theme));
         true
@@ -1015,19 +1031,22 @@ mod tests {
         assert_eq!(s.terminal_opacity, 0.0);
         let opaque = resolve(&GRAPHITE, &BTreeMap::new());
         let mut theme = opaque.clone();
-        see_through(&mut theme);
+        see_through(&mut theme, 0.8);
         for name in ["background", "surface", "canvas", "chrome"] {
             assert_eq!(parse_hex(&theme[name]).unwrap().a, 0.0, "{name}");
             assert_eq!(rgb(&theme[name]), rgb(&opaque[name]), "{name}");
         }
-        assert_eq!(theme["popover"], opaque["popover"]);
+        // Overlays take the window's opacity only where the renderer clears what's below them.
+        let popover = parse_hex(&theme["popover"]).unwrap().a;
+        assert!((popover - if REPLACES_BELOW { 0.8 } else { 1.0 }).abs() < 0.01, "{popover}");
+        assert_eq!(rgb(&theme["popover"]), rgb(&opaque["popover"]));
     }
 
     #[test]
     fn see_through_leaves_a_value_that_is_no_color_as_written() {
         let colors = [("background".to_owned(), "日本語x".to_owned())].into();
         let mut theme = resolve(&GRAPHITE, &colors);
-        see_through(&mut theme);
+        see_through(&mut theme, 0.8);
         assert_eq!(theme["background"], "日本語x");
     }
 
@@ -1037,7 +1056,7 @@ mod tests {
         let cleared = forms.map(|v| {
             let colors = [("background".to_owned(), v.to_owned())].into();
             let mut theme = resolve(&GRAPHITE, &colors);
-            see_through(&mut theme);
+            see_through(&mut theme, 0.8);
             theme["background"].clone()
         });
         assert_eq!(cleared, ["#12345600"; 4]);
